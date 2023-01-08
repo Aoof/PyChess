@@ -24,6 +24,8 @@ class Board():
             "black": collections.defaultdict(int),
             "white": collections.defaultdict(int)
         }
+
+        self.inCheck = [False, False] # [whiteInCheck, blackInCheck]
         self.pieces = []
         chars = np.array([i for i in string.ascii_uppercase][:8])
         numbers = np.array([i + 1 for i in range(8)][::-1])
@@ -61,8 +63,8 @@ class Board():
         text = font.render("Turn: " + self.turn, True, (0, 0, 0))
         window.blit(text, (self.settings.width//2 - text.get_width()//2, self.settings.height - text.get_height()))
         
-        font = pygame.font.SysFont(FONT, 30)
         # Draw taken pieces
+        font = pygame.font.SysFont(FONT, 30)
         text = font.render(" ".join([f"{str.upper(x[0])}: {self.taken['white'][x]}" for x in self.taken["white"].keys()]), True, (0, 0, 0))
         window.blit(text, (0, self.settings.height - text.get_height()))
 
@@ -74,8 +76,10 @@ class Board():
             sprite_pos = (piece.position[1] * self.settings.size + self.settings.size / 2 - piece.sprite.get_height() / 2,
                         piece.position[0] * self.settings.size + self.settings.size / 2 - piece.sprite.get_width() / 2)
             window.blit(piece.sprite, sprite_pos)
-            if self.selected == piece.position:            
-                self.draw_moves(window, piece)
+        
+        # Draw available moves
+        sPiece = self.findPieceByPos(self.selected)
+        if sPiece: self.draw_moves(window, sPiece)
 
     def draw_cell_labels(self, window, row_index, column_index, piece):
         label_color = self.settings.theme[1] if piece else self.settings.theme[0] 
@@ -103,7 +107,7 @@ class Board():
                     y += self.settings.size // 2 
                     pygame.draw.circle(window, (100, 100, 100), (x, y), r)
     
-    def isValidMove(self, piece, newPosition):
+    def isValidMove(self, piece : Piece, newPosition):
         if newPosition[0] > 8 or newPosition[0] < 0 or newPosition[1] > 8 or newPosition[1] < 0:
             return False
 
@@ -126,15 +130,12 @@ class Board():
                self.piece_list[newPosition[0]][newPosition[1]] == "--":
                 return True
 
-            if (piece.position[0] == (1 if piece.color == "white" else 6) and \
+            if self.piece_list[newPosition[0] + (1 if piece.color == "white" else -1)][newPosition[1]] == "--" and \
+                piece.position[0] in (1, 6) and newPosition[0] in (3, 4) and \
+                abs(piece.position[0] - newPosition[0]) == 2 and \
                 piece.position[1] == newPosition[1] and \
-                self.piece_list[newPosition[0]][newPosition[1]] == "--" and \
-                self.piece_list[newPosition[0] - 1][newPosition[1]] == "--") or \
-                (newPosition[0] == (4 if piece.color == "white" else 3) and \
-                piece.position[1] == newPosition[1] and \
-                self.piece_list[newPosition[0]][newPosition[1]] == "--" and \
-                self.piece_list[newPosition[0] - 1][newPosition[1]] == "--"):
-                    return True
+                self.piece_list[newPosition[0]][newPosition[1]] == "--":
+                return True
 
             return False
         if piece.type == "knight":
@@ -171,8 +172,9 @@ class Board():
             if abs(newPosition[0] - piece.position[0]) > 1 or abs(newPosition[1] - piece.position[1]) > 1:
                 return False
             return True
+        return False
 
-    def pathIsBlockedB(self, piece, dest):
+    def pathIsBlockedB(self, piece : Piece, dest):
         if abs(dest[0] - piece.position[0]) != abs(dest[1] - piece.position[1]):
             return True
         
@@ -190,7 +192,7 @@ class Board():
             return False
         return True
 
-    def pathIsBlockedR(self, piece, dest):
+    def pathIsBlockedR(self, piece : Piece, dest):
         if piece.position[0] != dest[0] and piece.position[1] != dest[1]:
             return True
 
@@ -213,3 +215,46 @@ class Board():
         if self.piece_list[dest[0]][dest[1]][0] != piece.color[0]:
             return False
         return True
+
+
+    def findPieceByPos(self, pos):
+        for piece in self.pieces:
+            if piece.position == pos:
+                return piece
+        return None
+
+
+    def move_piece(self, piece : Piece, pos):
+        if self.isValidMove(piece, pos) and self.turn == piece.color:
+            target = self.findPieceByPos(pos)
+            if target and target.color != piece.color:
+                self.taken[piece.color][target.type] += 1 
+                self.pieces.remove(target)
+                print("PIECE TAKEN BY "+piece.color)
+            self.piece_list[pos[0]][pos[1]] = self.piece_list[piece.position[0]][piece.position[1]]
+            self.piece_list[piece.position[0]][piece.position[1]] = "--"
+            print(np.array(self.piece_list))
+            piece.position = pos
+            self.update_turn()
+
+    def is_in_check(self):
+        # Get the turn's king
+        king_pos = None
+        for i in range(8):
+            for j in range(8):
+                piece = self.findPieceByPos([i, j])
+                if piece and piece.color == self.turn and piece.type == "king":
+                    king_pos = (i, j)
+                    break
+            if king_pos is not None:
+                break
+        
+        # Check if any of the other turn's pieces can attack the king
+        for i in range(8):
+            for j in range(8):
+                piece = self.findPieceByPos([i, j])
+                if piece and piece.color != self.turn:
+                    if self.isValidMove(piece, king_pos):
+                        return True
+        print(f"Is in check white: {self.inCheck[0]} black: {self.inCheck[1]}")
+        return False
