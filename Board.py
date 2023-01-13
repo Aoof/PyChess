@@ -230,31 +230,10 @@ class Board():
             if target and target.color != piece.color:
                 self.taken[piece.color][target.type] += 1 
                 self.pieces.remove(target)
-                print("PIECE TAKEN BY "+piece.color)
             self.piece_list[pos[0]][pos[1]] = self.piece_list[piece.position[0]][piece.position[1]]
             self.piece_list[piece.position[0]][piece.position[1]] = "--"
-            print(np.array(self.piece_list))
             piece.position = pos
             self.update_turn()
 
-    def is_in_check(self):
-        # Get the turn's king
-        king_pos = None
-        for i in range(8):
-            for j in range(8):
-                piece = self.findPieceByPos([i, j])
-                if piece and piece.color == self.turn and piece.type == "king":
-                    king_pos = (i, j)
-                    break
-            if king_pos is not None:
-                break
-        
-        # Check if any of the other turn's pieces can attack the king
-        for i in range(8):
-            for j in range(8):
-                piece = self.findPieceByPos([i, j])
-                if piece and piece.color != self.turn:
-                    if self.isValidMove(piece, king_pos):
-                        return True
-        print(f"Is in check white: {self.inCheck[0]} black: {self.inCheck[1]}")
+    def is_in_check(self, notatedBoard):
         return False
