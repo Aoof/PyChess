@@ -35,3 +35,9 @@ This module contains the Piece class which represents a single chess piece on th
 - `type (string)`: Type of the piece, one of `'rook'`, `'knight'`, `'bishop'`, `'queen'`, `'king'`, or `'pawn'`.
 - `position (list of int)`: Position of the piece on the board, represented as a 2D array index `[row, column]`.
 This class is used in the `Board` class to keep track of all pieces on the board, as well as their positions and attributes.
+
+
+# Latest updates
+General notes per commit
+- `TODO Jan 13 16:54` Keep valid moves as it is but instead deny the user from making a move if user was in check. 
+- `DONE Jan 13 16:54` Modified Board.py because it's formatted brilliantly and totally won't need a full rewrite.
