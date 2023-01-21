@@ -2,6 +2,7 @@ import numpy as np
 import string
 import pygame
 import collections
+import os
 from Piece import Piece
 
 FONT = "Albertus"
@@ -26,7 +27,6 @@ class Board():
         }
 
         self.inCheck = [False, False] # [whiteInCheck, blackInCheck]
-        self.pieces = []
         chars = np.array([i for i in string.ascii_uppercase][:8])
         numbers = np.array([i + 1 for i in range(8)][::-1])
         self.notation = []
@@ -46,6 +46,23 @@ class Board():
                 if x % 2 != 0:
                     if y % 2 == 0: self.checker[y, x] = 1
                     else: self.checker[y, x-1] = 1
+        self.pieces = [*self.get_pieces(self.piece_list)]
+        print(self.pieces)
+
+    def get_pieces(self, notationBoard):
+        types = {"r": "rook", "n":"knight", "b":"bishop", "q":"queen", "k":"king", "p":"pawn"}
+        for r in range(8):
+            for c in range(8):
+                piece = notationBoard[r][c]
+                if piece != "--":
+                    color, type = piece[0], piece[1]
+                    color = "white" if color == "w" else "black"
+                    type = types[type]
+                    sprite_loc = os.path.join(os.path.dirname(__file__), f"assets/{color}_{type}.png")
+                    sprite = pygame.image.load(sprite_loc)
+                    sprite = pygame.transform.scale(sprite, (self.settings.size, self.settings.size))
+                    position = [r, c]
+                    yield Piece(sprite, color, type, position)
 
     def draw_board(self, window):
         # Draw the board cells
@@ -78,7 +95,7 @@ class Board():
             window.blit(piece.sprite, sprite_pos)
         
         # Draw available moves
-        sPiece = self.findPieceByPos(self.selected)
+        sPiece = self.findPieceByPos(self.selected, self.pieces)
         if sPiece: self.draw_moves(window, sPiece)
 
     def draw_cell_labels(self, window, row_index, column_index, piece):
@@ -97,15 +114,19 @@ class Board():
         else:
             self.turn = "white"
 
-    def draw_moves(self, window, piece):
-        for row_index, row in enumerate(self.piece_list):
+    def get_moves(self, piece, notationBoard):
+        for row_index, row in enumerate(notationBoard):
             for column_index, _ in enumerate(row):
                 if self.isValidMove(piece, [row_index, column_index]):
-                    r = self.settings.size // 8
-                    x, y = column_index * self.settings.size, row_index * self.settings.size
-                    x += self.settings.size // 2
-                    y += self.settings.size // 2 
-                    pygame.draw.circle(window, (100, 100, 100), (x, y), r)
+                    yield [row_index, column_index]
+
+    def draw_moves(self, window, piece):
+        for row_index, column_index in self.get_moves(piece, self.piece_list):
+            r = self.settings.size // 8
+            x, y = column_index * self.settings.size, row_index * self.settings.size
+            x += self.settings.size // 2
+            y += self.settings.size // 2 
+            pygame.draw.circle(window, (100, 100, 100), (x, y), r)
     
     def isValidMove(self, piece : Piece, newPosition):
         if newPosition[0] > 8 or newPosition[0] < 0 or newPosition[1] > 8 or newPosition[1] < 0:
@@ -217,8 +238,8 @@ class Board():
         return True
 
 
-    def findPieceByPos(self, pos):
-        for piece in self.pieces:
+    def findPieceByPos(self, pos, pieces):
+        for piece in pieces:
             if piece.position == pos:
                 return piece
         return None
@@ -226,14 +247,22 @@ class Board():
 
     def move_piece(self, piece : Piece, pos):
         if self.isValidMove(piece, pos) and self.turn == piece.color:
-            target = self.findPieceByPos(pos)
+            piece_list = self.piece_list.copy()
+            piece_list[pos[0]][pos[1]] = piece_list[piece.position[0]][piece.position[1]]
+            piece_list[piece.position[0]][piece.position[1]] = "--"
+            futureBoardPieces = [*self.get_pieces(piece_list)]
+            for futurePiece in futureBoardPieces:
+                for futureMove in self.get_moves(futurePiece, piece_list):
+                    target = self.findPieceByPos(futureMove, futureBoardPieces)
+                    if target and target.color != futurePiece.color and target.type == "king":
+                        print(target.color + " threatened by " + futurePiece.color)
+
+            target = self.findPieceByPos(pos, self.pieces)
             if target and target.color != piece.color:
                 self.taken[piece.color][target.type] += 1 
                 self.pieces.remove(target)
+
             self.piece_list[pos[0]][pos[1]] = self.piece_list[piece.position[0]][piece.position[1]]
             self.piece_list[piece.position[0]][piece.position[1]] = "--"
             piece.position = pos
             self.update_turn()
-
-    def is_in_check(self, notatedBoard):
-        return False

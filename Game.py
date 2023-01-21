@@ -49,7 +49,7 @@ class Game():
                             self.board.selected = []
                 mouse_x = mouse_x // self.settings.size
                 mouse_y = mouse_y // self.settings.size
-                piece = self.board.findPieceByPos(self.board.selected)
+                piece = self.board.findPieceByPos(self.board.selected, self.board.pieces)
                 if piece: self.board.move_piece(piece, [mouse_y, mouse_x])
                 
     def run(self):
@@ -61,18 +61,4 @@ class Game():
 
 if __name__ == "__main__":
     game = Game()
-    types = {"r": "rook", "n":"knight", "b":"bishop", "q":"queen", "k":"king", "p":"pawn"}
-    for r in range(8):
-        for c in range(8):
-            piece = game.board.piece_list[r][c]
-            if piece != "--":
-                color, type = piece[0], piece[1]
-                color = "white" if color == "w" else "black"
-                type = types[type]
-                sprite_loc = os.path.join(os.path.dirname(__file__), f"assets/{color}_{type}.png")
-                sprite = pygame.image.load(sprite_loc)
-                sprite = pygame.transform.scale(sprite, (game.settings.size, game.settings.size))
-                position = [r, c]
-                game.board.pieces.append(Piece(sprite, color, type, position))
-                print(f"loaded {sprite_loc}")
     game.run()
